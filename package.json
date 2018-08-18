@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "compromise": "^11.11.0",
+    "firebase": "^5.2.0",
     "register-service-worker": "^1.0.0",
     "semantic-ui-css": "^2.3.2",
     "vue": "^2.5.16",

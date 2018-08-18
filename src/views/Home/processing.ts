@@ -1,3 +1,4 @@
+import firebase from '@/scripts/firebase'
 // tslint:disable-next-line:no-var-requires
 const nlp = require('compromise')
 
@@ -48,20 +49,24 @@ interface IData {
 }
 type Database = Map<string, IData>
 
+const db = firebase.firestore()
+db.settings({ timestampsInSnapshots: true })
+const wordsRef = db.collection('words')
+
 export const convertText = async (inputString: string): Promise<string> => {
 	const { nouns, verbs, adjectives, adverbs } = processInput(inputString)
 
-	const db = await buildDatabase([
+	const dictionary = await buildDictionary([
 		...nouns.map((n) => n.base),
 		...verbs.map((v) => v.base),
 		...adjectives.map((a) => a.base),
 		...adverbs.map((a) => a.base),
 	])
 
-	let outputString = replaceNouns(inputString, nouns, db)
-	outputString = replaceVerbs(outputString, verbs, db)
-	outputString = replaceAdjectives(outputString, adjectives, db)
-	outputString = replaceAdverbs(outputString, adverbs, db)
+	let outputString = replaceNouns(inputString, nouns, dictionary)
+	outputString = replaceVerbs(outputString, verbs, dictionary)
+	outputString = replaceAdjectives(outputString, adjectives, dictionary)
+	outputString = replaceAdverbs(outputString, adverbs, dictionary)
 	return outputString
 }
 
@@ -92,7 +97,7 @@ const processInput = (inputString: string) => {
 	}
 }
 
-const url = (word: string) => `http://words.bighugelabs.com/api/2/2601c40018ab5d51ea6a0884c8fe2a24/${word}/json`
+const url = (word: string) => `https://words.bighugelabs.com/api/2/2601c40018ab5d51ea6a0884c8fe2a24/${word}/json`
 const get = (obj: any, ...args: string[]) => {
 	let prop = obj
 	for (const arg of args) {
@@ -104,11 +109,18 @@ const get = (obj: any, ...args: string[]) => {
 	return prop
 }
 
-const buildDatabase = async (words: string[]): Promise<Database> => {
-	const db: Database = new Map()
+const buildDictionary = async (words: string[]): Promise<Database> => {
+	const dictionary: Database = new Map()
 	const uniqueWords = Array.from(new Set(words))
 
 	await Promise.all(uniqueWords.map(async (word) => {
+		const doc = await wordsRef.doc(word).get()
+		if (doc.exists) {
+			dictionary.set(word, doc.data() as any)
+			return
+		}
+
+		if (word.split(' ').length > 1) { return }
 		const response = await fetch(url(word))
 		if (response && response.ok) {
 			const json: IJSONData = await response.json()
@@ -125,10 +137,11 @@ const buildDatabase = async (words: string[]): Promise<Database> => {
 					],
 				},
 			}), {}) as IData
-			db.set(word, data)
+			dictionary.set(word, data)
+			await wordsRef.doc(word).set(data)
 		}
 	}))
-	return db
+	return dictionary
 }
 
 const randRange = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1) + min)
@@ -141,17 +154,17 @@ const toCapital = (word: string): string => word[0].toUpperCase() + word.slice(1
 
 const replaceKeepCase = (inputString: string, replace: string, replaceWith: string): string => {
 	const match = inputString.match(new RegExp(replace, 'i'))
-	if (replace && replaceWith && match) {
+	if (match) {
 		const word = match[0]
 		return inputString.replace(word, isCapital(word) ? toCapital(replaceWith) : replaceWith)
 	}
 	return inputString
 }
 
-const replaceNouns = (inputString: string, nouns: INounData[], db: Database): string => {
+const replaceNouns = (inputString: string, nouns: INounData[], dictionary: Database): string => {
 	let outputString = inputString
 	for (const nounData of nouns) {
-		const data = db.get(nounData.base)
+		const data = dictionary.get(nounData.base)
 		if (!data || data.noun.synonym.length === 0) { continue }
 
 		const result = nlp(randItem(data.noun.synonym))
@@ -163,10 +176,10 @@ const replaceNouns = (inputString: string, nouns: INounData[], db: Database): st
 	return outputString
 }
 
-const replaceVerbs = (inputString: string, verbs: IVerbData[], db: Database): string => {
+const replaceVerbs = (inputString: string, verbs: IVerbData[], dictionary: Database): string => {
 	let outputString = inputString
 	for (const verbData of verbs) {
-		const data = db.get(verbData.base)
+		const data = dictionary.get(verbData.base)
 		if (!data || data.verb.synonym.length === 0) { continue }
 
 		let result = nlp(randItem(data.verb.synonym))
@@ -194,10 +207,10 @@ const replaceVerbs = (inputString: string, verbs: IVerbData[], db: Database): st
 	return outputString
 }
 
-const replaceAdjectives = (inputString: string, adjectives: IAdjectiveData[], db: Database): string => {
+const replaceAdjectives = (inputString: string, adjectives: IAdjectiveData[], dictionary: Database): string => {
 	let outputString = inputString
 	for (const adjectiveData of adjectives) {
-		const data = db.get(adjectiveData.base)
+		const data = dictionary.get(adjectiveData.base)
 		if (!data || data.adjective.synonym.length === 0) { continue }
 
 		const result = randItem(data.adjective.synonym)
@@ -206,10 +219,10 @@ const replaceAdjectives = (inputString: string, adjectives: IAdjectiveData[], db
 	return outputString
 }
 
-const replaceAdverbs = (inputString: string, adverbs: IAdverbData[], db: Database): string => {
+const replaceAdverbs = (inputString: string, adverbs: IAdverbData[], dictionary: Database): string => {
 	let outputString = inputString
 	for (const adverbData of adverbs) {
-		const data = db.get(adverbData.base)
+		const data = dictionary.get(adverbData.base)
 		if (!data || data.adverb.synonym.length === 0) { continue }
 
 		const result = randItem(data.adverb.synonym)

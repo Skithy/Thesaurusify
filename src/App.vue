@@ -1,6 +1,6 @@
 <template>
 <div id="app">
-	<Navbar />
+	<Navbar></Navbar>
 	<div id="view">
 		<router-view />
 	</div>
@@ -18,7 +18,7 @@ export default Vue.extend({
 </script>
 
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
 #app {
 	height: 100%;
 	font-family: 'Times New Roman', Times, serif;

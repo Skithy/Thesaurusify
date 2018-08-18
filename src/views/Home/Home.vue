@@ -34,7 +34,8 @@ export default class Home extends Vue {
 </script>
 
 
-<style lang="scss" scoped>
+<style lang="scss">
+@import "../../all.scss";
 textarea {
 	resize: none;
 }
@@ -42,12 +43,25 @@ textarea {
 #home {
 	display: grid;
 	height: 100%;
-	grid-template-columns: auto 40em 40em auto;
-	grid-template-rows: 4em 20em;
-	grid-template-areas: 
-		". header button ." 
-		". input result .";
 	grid-gap: 1em;
+
+	@include for-phone-only {
+		grid-template-columns: auto minmax(90vw, 26em) auto;
+		grid-template-rows: 2em 15em 3em 15em;
+		grid-template-areas: 
+			". header ." 
+			". input . "
+			". button ."
+			". result .";
+	}
+
+	@include for-tablet-portrait-up {
+		grid-template-columns: auto minmax(15em, 45vw)  minmax(15em, 45vw) auto;
+		grid-template-rows: 3em minmax(15em, 50vh);
+		grid-template-areas: 
+			". header button ." 
+			". input result .";
+	}
 }
 #header { grid-area: header; }
 #input { grid-area: input; }
