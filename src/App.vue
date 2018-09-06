@@ -8,8 +8,8 @@
 </template>
 
 <script lang="ts">
-import Navbar from '@/views/Navbar/Navbar.vue'
 import Vue from 'vue'
+import Navbar from './views/Navbar/Navbar.vue'
 export default Vue.extend({
 	components: {
 		Navbar,
